@@ -1,106 +1,316 @@
-# Airbnb Clone - GraphQL Server Example with Prisma
+![CloudBees Rollout](https://1ko9923xosh2dsbjsxpwqp45-wpengine.netdna-ssl.com/wp-content/themes/rollout/images/rollout_white_logo1.png)
 
-This project demonstrates how to build a production-ready application with Prisma and [`graphql-yoga`](https://github.com/graphcool/graphql-yoga). The API provided by the GraphQL server is the foundation for an application similar to [AirBnB](https://www.airbnb.com/).
+[![Integration status](https://app.rollout.io/badges/5e596444a3e9af392344cb33)](https://app.rollout.io/app/5e596214ce4c2c7e128af2a2/settings/info)
 
-## Get started
+This repository is a YAML represnetation for Rollout configuration, it is connected (see badge for status) to Rollout service via [Rollout's github app](https://github.com/apps/rollout-io)
+Configuration as code allows the entire configuration of Rollout's state to be stored as source code. It integrates Rollout's UI with engineering existing environment. This approach brings a lot of benefits.
 
-> **Note**: `prisma` is listed as a _development dependency_ and _script_ in this project's [`package.json`](./package.json). This means you can invoke the Prisma CLI without having it globally installed on your machine (by prefixing it with `yarn`), e.g. `yarn prisma deploy` or `yarn prisma playground`. If you have the Prisma CLI installed globally (which you can do with `npm install -g prisma`), you can omit the `yarn` prefix.
 
-### 1. Download the example & install dependencies
+# What is Rollout
+Rollout is a multi-platform, infrastructure as code, software as a service feature management and remote configuration solution.
 
-Clone the repository with the following command:
+# What Are Feature Flags
 
-```sh
-git clone git@github.com:graphcool/graphql-server-example.git
+Feature Flags is a powerfull technique based on remotetly and conditionaly opening/closing features threw the entire feature developement and delivery process.  As Martin Fowler writes on [Feature Toggles (aka Feature Flags)](https://martinfowler.com/articles/feature-toggles.html)
+
+> Feature Toggles (often also refered to as Feature Flags) are a powerful technique, allowing teams to modify system behavior without changing code. They fall into various usage categories, and it's important to take that categorization into account when implementing and managing toggles. Toggles introduce complexity. We can keep that complexity in check by using smart toggle implementation practices and appropriate tools to manage our toggle configuration, but we should also aim to constrain the number of toggles in our system.
+
+You can read more about the Advantages of having Rollout configuration stored and treated as code in [Rollout's support doc](https://support.rollout.io/docs/configuration-as-code)
+
+
+# Repository, Directories and YAML structure
+## Branches are Environments
+
+Every environment on Rollout dashboard is mapped to a branch in git. The same name that is used for the environment will be used for the branch name. The only exception being Production environment which is mapped to `master` branch
+
+## Directory structure
+
+Rollout repository integration creates the following directory structure:
+```
+.
+├── experiments             # Experiments definitions
+│   └──  archived           # Archived experiments definitions
+├── target_groups           # Target groups definitions
+└── README.md
 ```
 
-Next, navigate into the downloaded folder and install the NPM dependencies:
+- All experiments are located under the experiment folder
+- All archived experiments are located under the `experiments/archived` folder
 
-```sh
-cd graphql-server-example
-yarn install
+## Experiment Examples
+
+### False for all users
+```yaml
+flag: default.followingView
+type: experiment
+name: following view
+value: false
+```
+This YAML representation in Rollout's dashboard:
+![dashboard](https://files.readme.io/00b37e6-Screen_Shot_2018-12-03_at_11.47.56.png)
+### 50% split
+```yaml
+flag: default.followingView
+type: experiment
+name: following view
+value:
+  - option: true
+    percentage: 50
+```
+This YAML representation in Rollout's dashboard:
+![dashboard](https://files.readme.io/5af4d9e-Screen_Shot_2018-12-03_at_12.01.28.png)
+### Open feature for QA and Beta Users on version 3.0.1, otherwise close it
+```yaml
+flag: default.followingView
+type: experiment
+name: following view
+conditions:
+  - group:
+      name:
+        - QA
+        - Beta Users
+    version:
+      operator: semver-gte
+      semver: 3.0.1
+    value: true
+value: false
+```
+This YAML representation in Rollout's dashboard:
+![dashboard](https://files.readme.io/6884476-Screen_Shot_2018-12-03_at_12.04.13.png)
+### Open feature for all platform beside Android
+```yaml
+flag: default.followingView
+type: experiment
+name: following view
+platforms:
+  - name: Android
+    value: false
+value: true
+```
+Dashboard default platfrom configuration:
+![dashboard](https://files.readme.io/461c854-Screen_Shot_2018-12-04_at_10.19.59.png)
+Dashboard Android configuration:
+![dashboard](https://files.readme.io/1aafd04-Screen_Shot_2018-12-03_at_21.39.52.png)
+## Experiment YAML
+
+This section describes the yaml scheme for an experiment. It is a composite of 3 schemas:
+
+
+-  [Root schema ](doc:configuration-as-code#section-root-schema)  - the base schema for experiment
+-  [Splited Value schema](doc:configuration-as-code#section-splitedvalue-schema)  - Represents a splited value -  a value that is distributed among different instances based on percentage
+-  [Scheduled Value schema](doc:configuration-as-code#section-scheduledvalue-schema)  - Represents a scheduled value -  a value that is based on the time that the flag was evaluated
+-  [Condition schema](doc:configuration-as-code#section-condition-schema)  - Specify how to target a specific audience/device
+-  [Platform schema](doc:configuration-as-code#section-platform-schema)  - Specify how to target a specific platform
+
+
+
+### Root Schema
+An Experiment controls the flag value in runtime:
+
+```yaml
+# Yaml api version
+# Optional: defaults to "1.0.0"
+version: Semver
+
+# Yaml Type (required)
+type: "experiment"
+
+# The flag being controlled by this experiment (required)
+flag: String
+
+# The available values that this flag can be
+# Optional=[false, true]
+availableValues: [String|Bool]
+
+# The name of the experiment
+# Optional: default flag name
+name: String
+
+# The Description of the experiment
+# Optional=""
+description: String
+
+# Indicates if the experiment is active
+# Optional=true
+enabled: Boolean
+
+# Expriment lables
+# Optional=[]
+labels: [String]|String
+
+# Stickiness property that controls percentage based tossing
+# Optional="rox.distict_id"
+stickinessProperty: String
+
+# Platfrom explicit targeting
+# Optional=[]
+platforms: [Platfrom]  # see Platfrom schema
+
+# Condition and values for default platfomr
+# Optional=[]
+conditions: [Condition] # see Condition schema
+
+# Value when no Condition is met
+# Optional
+#  false for boolean flags
+#  [] for enum flags  (indicates default value)
+value: String|Boolean|[SplitedValue]|[ScheduledValue]
 ```
 
-### 2. Deploy the Prisma database service
+### SplitedValue Schema
+```yaml
+# Percentage, used for splitting traffic across different values
+# Optional=100
+percentage: Number
 
-You can now [deploy](https://www.prismagraphql.com/docs/reference/cli-command-reference/database-service/prisma-deploy-kee1iedaov) the Prisma service (note that this requires you to have [Docker](https://www.docker.com) installed on your machine - if that's not the case, follow the collapsed instructions below the code block):
+# The Value to be delivered
+option: String|Boolean
+```
+### ScheduledValue Schema
+```yaml
+# The Date from which this value is relevant
+# Optional=undefined
+from: Date
 
-```sh
-cd prisma
-docker-compose up -d
-cd ..
-yarn prisma deploy
+# Percentage, used for splitting traffic across different values
+# Optional=100
+percentage: Number
+```
+### Condition Schema
+
+The Condition is a pair of condition and value, an array of conditions can be viewed as an if-else statement by the order of conditions
+
+The schema contains three types of condition statements
+- Dependency - express flag dependencies, by indicating flag name and expected value
+- Groups - a list of target-groups and the operator that indicates the relationship between them (`or`|`and`|`not`)
+- Version -  comparing the version of
+[/block]
+The relationship between these items is `and`, meaning:
+       If the dependency is met `and` Groups matches `and` Version matches  `then` flage=value
+
+Here is the Condition schema
+```yaml
+# Condition this flag value with another flag value
+dependency:
+    # Flag Name
+    flag: String
+    # The expected Flag Value
+    value: String|Boolean
+
+# Condition flag value based on target group(s)
+group:
+    # The logical relationship between the groups
+    # Optional = or
+    operator: or|and|not
+
+    # Name of target groups
+    name: [String]|String
+
+# Condition flag value based release version
+version:
+    # The operator to compare version
+    operator: semver-gt|semver-gte|semver-eq|semver-ne|semver-lt|semver-lte
+
+    # The version to compare to
+    semver: Semver
+
+# Value when Condition is met
+value: String|Boolean|[SplitedValue]|[ScheduledValue]
+```
+### Platform Schema
+The platform object indicates a specific targeting for a specific platform
+
+```yaml
+# Name of the platform, as defined in the SDK running
+name: String
+
+# Override the flag name, when needed
+# Optional = experiment flag name
+flag: String
+
+# Condition and values for default platfomr
+# Optional=[]
+conditions: [Condition] # see Condition schema
+
+# Value when no Condition is met
+# Optional
+#  false for boolean flags
+#  [] for enum flags  (indicates default value)
+value: String|Boolean|[SplitedValue]|[ScheduledValue] # see Value schema
 ```
 
-<details>
- <summary><strong>I don't have <a href="https://www.docker.com">Docker</a> installed on my machine</strong></summary>
 
-To deploy your service to a public cluster (rather than locally with Docker), you need to perform the following steps:
-
-1. Remove the `cluster` property from `prisma.yml`.
-1. Run `yarn prisma deploy`.
-1. When prompted by the CLI, select a public cluster (e.g. `prisma-eu1` or `prisma-us1`).
-1. Replace the [`endpoint`](./src/index.js#L23) in `index.ts` with the HTTP endpoint that was printed after the previous command.
-
-</details>
-<br>
-
-> Notice that when deploying the Prisma service for the very first time, the CLI will execute the mutations from [`database/seed.graphql`](database/seed.graphql) to seed some initial data in the database. The CLI is aware of this file because it's listed in [`database/prisma.yml`](database/prisma.yml#L11) under the `seed` property.
-
-### 3. Start the GraphQL server
-
-The Prisma database service that's backing your GraphQL server is now available. This means you can now start the server:
-
-```sh
-yarn dev
+## Target Group Examples
+### List of matching userid
+```yaml
+type: target-group
+name: QA
+conditions:
+  - operator: in-array
+    property: soundcloud_id
+    operand:
+      - 5c0588007cd291cca474454f
+      - 5c0588027cd291cca4744550
+      - 5c0588037cd291cca4744551
+      - 5c0588047cd291cca4744552
+      - 5c0588047cd291cca4744553
 ```
 
-The `dev` script starts the server (on `http://localhost:4000`) and opens a GraphQL Playground where you get acces to the API of your GraphQL server (defined in the [application schema](./src/schema.graphql)) as well as the underlying Prisma API (defined in the auto-generated [Prisma database schema](./src/generated/prisma.ts)) directly.
+![dashboard](https://files.readme.io/7affbbe-Screen_Shot_2018-12-03_at_21.47.05.png)
+### Using number property for comparison
 
-Inside the Playground, you can start exploring the available operations by browsing the built-in documentation.
-
-## Testing the API
-
-Check [`queries/booking.graphql`](queries/booking.graphql) and [`queries/queries.graphql`](queries/queries.graphql) to see several example operations you can send to the API. To get an understanding of the booking flows, check the mutations in [`queries/booking.graphql`](queries/booking.graphql).
-
-## Deployment
-
-A quick and easy way to deploy the GraphQL server from this repository is with [Zeit Now](https://zeit.co/now). After you downloaded the [Now Desktop](https://zeit.co/download) app, you can deploy the server with the following command:
-
-```sh
-now --dotenv .env.prod
+```yaml
+type: target-group
+name: DJ
+conditions:
+  - operator: gte
+    property: playlist_count
+    operand: 100
+description: Users with a lot of playlists
 ```
 
-**Notice that you need to create the `.env.prod` file yourself before invoking the command.** It should list the same environment variables as [`.env`](.env) but with different values. In particular, you need to make sure that your Prisma service is deployed to a cluster that accessible over the web.
+On rollout Dashboard
+![dashboard](https://files.readme.io/dcb562f-Screen_Shot_2018-12-03_at_21.43.19.png)
+## Target Group YAML
 
-Here is an example for what `.env.prod` might look like:
+A Target group is a set of rules on top of custom properties that are defined in runtime, it is used in experiments conditions
 
+```yaml
+# Yaml api version
+# Optional: defaults to "1.0.0"
+version: Semver
+
+# Yaml Type (required)
+type: "target-group"
+
+#Target Group Name
+name: String
+
+# Target Group description
+# Optional = ""
+description: String
+
+# The logical relationship between conditions
+# Optional = and
+operator: or|and
+
+# Array of Conditions that have a logical AND relationship between them
+conditions:
+    # The Custom property to be conditioned (first operand)
+  - property: String
+
+    # The Operator of the confition
+    operator: is-undefined|is-true|is-false|eq|ne|gte|gt|lt|lte|regex|semver-gt|semver-eq|semver-gte|semver-gt|semver-lt|semver-lte
+
+    # The Second operand of the condition
+    # Optional - Based on operator  (is-undefined, is-true, is-false)
+    operand: String|Number|[String]
 ```
-PRISMA_STAGE="prod"
-PRISMA_CLUSTER="public-tundrapiper-423/prisma-us1"
-PRISMA_ENDPOINT="http://us1.prisma.sh/public-tundrapiper-423/prisma-airbnb-example/dev"
-PRISMA_SECRET="mysecret123"
-APP_SECRET="appsecret321"
-```
 
-To learn more about deploying GraphQL servers with Zeit Now, check out this [tutorial](https://www.prismagraphql.com/docs/tutorials/graphql-server-development/deployment-with-now-ahs1jahkee).
+# See Also:
+- Using Roxy docker image for Microservices Automated Testing and Local development [here](https://support.rollout.io/docs/microservices-automated-testing-and-local-development)
+- Configuration as Code advantages [here](https://support.rollout.io/docs/configuration-as-code#section-advantages-of-configuration-as-code)
+- Integration walkthrough [here](https://support.rollout.io/docs/configuration-as-code#section-connecting-to-github-cloud)
 
-## Troubleshooting
 
-<details>
- <summary>I'm getting the error message <code>[Network error]: FetchError: request to http://localhost:4466/auth-example/dev failed, reason: connect ECONNREFUSED</code> when trying to send a query or mutation</summary>
-
-This is because the endpoint for the Prisma service is hardcoded in [`index.js`](index.js#L23). The service is assumed to be running on the default port for a local cluster: `http://localhost:4466`. Apparently, your local cluster is using a different port.
-
-You now have two options:
-
-1. Figure out the port of your local cluster and adjust it in `index.js`. You can look it up in `~/.prisma/config.yml`.
-1. Deploy the service to a public cluster. Expand the `I don't have Docker installed on my machine`-section in step 2 for instructions.
-
-Either way, you need to adjust the `endpoint` that's passed to the `Prisma` constructor in `index.js` so it reflects the actual cluster domain and service endpoint.
-
-</details>
-
-## License
-
-MIT
+Please contact support@rollout.io for any issues questions or suggestions you might have
